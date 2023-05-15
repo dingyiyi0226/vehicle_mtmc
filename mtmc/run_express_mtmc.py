@@ -1,6 +1,7 @@
 import sys
 import os
 
+import wandb
 from yacs.config import CfgNode
 
 from mot.run_tracker import run_mot, MOT_OUTPUT_NAME
@@ -18,8 +19,13 @@ MTMC_OUTPUT_NAME = "mtmc"
 
 def run_express_mtmc(cfg: CfgNode):
     """Run Express MTMC on a given config."""
+
     if not check_express_config(cfg):
         return None
+
+    EXP_NAME = cfg.OUTPUT_DIR.split('/')[-1]
+    print('Exp: ', EXP_NAME)
+
     mot_configs = []
     cam_names, cam_dirs = [], []
     for cam_idx, cam_info in enumerate(cfg.EXPRESS.CAMERAS):
@@ -45,9 +51,11 @@ def run_express_mtmc(cfg: CfgNode):
                 f"Error in the express config of camera {len(mot_configs) - 1}.")
             return None
 
+    wandb.login()
+
     # run MOT in all cameras
     for mot_conf in mot_configs:
-        run_mot(mot_conf)
+        run_mot(mot_conf, cam_group=EXP_NAME, cam_name=mot_conf.OUTPUT_DIR.split('/')[-1])
 
     log.info("Express: Running MOT on all cameras finished. Running MTMC...")
 
@@ -58,7 +66,7 @@ def run_express_mtmc(cfg: CfgNode):
     mtmc_cfg.defrost()
     mtmc_cfg.MTMC.PICKLED_TRACKLETS = pickle_paths
     mtmc_cfg.freeze()
-    mtracks = run_mtmc(mtmc_cfg)
+    mtracks = run_mtmc(mtmc_cfg, cam_group=EXP_NAME)
 
     log.info("Express: Running MTMC on all cameras finished. Saving final results ...")
 

@@ -4,6 +4,7 @@ import imageio
 import gc
 import torch
 import numpy as np
+import wandb
 from PIL import Image
 from yacs.config import CfgNode
 
@@ -81,7 +82,7 @@ def box_change_skewed(box, prev_box, skew_ratio=0.1, eps=1e-5):
     return min(lr, ud) <= skew_ratio or max(lr, ud) >= 1 / skew_ratio
 
 
-def run_mot(cfg: CfgNode):
+def run_mot(cfg: CfgNode, cam_group=None, cam_name=None):
     """Run Multi-object tracking, defined by a config."""
 
     # check and verify config (has to be done after logging init to see errors)
@@ -218,6 +219,8 @@ def run_mot(cfg: CfgNode):
     benchmark = Benchmark()
     timer = Timer()
 
+    run = wandb.init(project="mtmc-try", group=cam_group, name=cam_name)
+
     for frame_num, frame in enumerate(video_in):
         if cfg.DEBUG_RUN and frame_num >= 100:
             break
@@ -324,6 +327,8 @@ def run_mot(cfg: CfgNode):
         print("\rFrame: {}/{}, fps: {:.3f}".format(
             frame_num, video_frames, fps_counter.value()), end="")
 
+        wandb.log({"fps": fps_counter.value()})
+
     time_taken = f"{int(timer.elapsed() / 60)} min {int(timer.elapsed() % 60)} sec"
     avg_fps = video_frames / timer.elapsed()
     log.info(
@@ -349,6 +354,9 @@ def run_mot(cfg: CfgNode):
     for track in final_tracks:
         track.predict_final_static_attributes()
         track.finalize_speed()
+
+    # close wandb run
+    run.finish()
 
     log.info("Tracking done. #Tracklets: {}".format(len(final_tracks)))
     # if cfg.MOT.REFINE:
