@@ -4,7 +4,12 @@ from mot.tracklet import Tracklet
 
 
 def to_frame_list(detections: Union[pd.DataFrame, dict], total_frames=-1):
-    """Convert a dict or df describing detections to a list containing info frame-by-frame."""
+    """Convert a dict or df describing detections to a list containing info frame-by-frame.
+
+    Returns:
+        [[(tx, ty, w, h, id_), ], []]
+         frame 1 dets
+    """
     if total_frames < 0:
         total_frames = max(detections["frame"]) + 1
     frames = [[] for _ in range(total_frames)]
