@@ -3,6 +3,7 @@ import sys
 import imageio
 import gc
 import torch
+import motmetrics as mm
 import numpy as np
 import wandb
 from PIL import Image
@@ -15,6 +16,7 @@ from mot.video_output import FileVideo, DisplayVideo, annotate_video_with_trackl
 from mot.zones import ZoneMatcher
 from mot.projection_3d import Projector
 from mot.attributes import AttributeExtractorMixed, SpeedEstimator
+from evaluate import evaluation
 from evaluate.run_evaluate import run_evaluation
 
 from reid.feature_extractor import FeatureExtractor
@@ -23,6 +25,7 @@ from reid.vehicle_reid.load_model import load_model_from_opts
 from detection.detection import Detection
 from detection.load_detector import load_yolo
 
+from tools.conversion import to_frame_list
 from tools.util import FrameRateCounter, Benchmark, Timer, parse_args
 from tools.preprocessing import create_extractor
 from tools import log
@@ -219,6 +222,17 @@ def run_mot(cfg: CfgNode, cam_group=None, cam_name=None):
     benchmark = Benchmark()
     timer = Timer()
 
+    acc = mm.MOTAccumulator(auto_id=True)
+    metrics = mm.metrics.motchallenge_metrics
+    metrics.extend(["idfp", "idfn", "idtp"])
+    mh = mm.metrics.create()
+    AVG_FRAME_NUM = 100
+
+    # load ground truth
+    test_df = evaluation.load_annots(cfg.EVAL.GROUND_TRUTHS)
+    total_frames = max(video_frames, max(test_df["frame"])) + 1
+    test_by_frame = to_frame_list(test_df, total_frames)
+
     run = wandb.init(project="mtmc-try", group=cam_group, name=cam_name, config=cfg)
 
     for frame_num, frame in enumerate(video_in):
@@ -277,6 +291,44 @@ def run_mot(cfg: CfgNode, cam_group=None, cam_name=None):
         active_track_ids = list(tracker.active_track_ids)
         active_tracks = tracker.active_tracks
         active_track_bboxes_tlwh = [tr.bboxes[-1] for tr in active_tracks]
+
+        # evaluate
+        gt = test_by_frame[frame_num]
+        mat_gt = np.array([x[:4] for x in gt])
+        gt_ids = [x[4] for x in gt]
+
+        iou_matrix = mm.distances.iou_matrix(mat_gt, active_track_bboxes_tlwh, 1 - cfg.EVAL.MIN_IOU)
+
+        n, m = len(gt), len(active_track_ids)
+
+        if cfg.EVAL.IGNORE_FP:
+            # remove preds that are unmatched (would be false positives)
+            matched_gt, matched_pred = mm.lap.linear_sum_assignment(iou_matrix)
+            remain_preds = set(matched_pred)
+            remain_pred_idx = [-1] * m
+            for i, p in enumerate(remain_preds):
+                remain_pred_idx[p] = i
+            m = len(remain_preds)
+
+            # now we can create the distance matrix rigged for our matching
+            iou_matrix = np.full((n, m), np.nan)
+            for i_gt, i_pred in zip(matched_gt, matched_pred):
+                iou_matrix[i_gt, remain_pred_idx[i_pred]] = 0.0
+        else:
+            remain_pred_idx = list(range(m))
+
+        pred_ids = [x for i, x in enumerate(active_track_ids) if remain_pred_idx[i] >= 0]
+
+        # print(f"Frame: {frame_num}, GT: {gt}, HBOX: {active_track_bboxes_tlwh}")
+
+        acc.update(gt_ids, pred_ids, iou_matrix)
+
+        summary = mh.compute(acc.events.loc[max(0, frame_num-AVG_FRAME_NUM):frame_num], metrics=metrics, name="mtsc")
+        # summary2 = mh.compute(acc, metrics=metrics, name="all")
+        # print(evaluation.formatted_summary(summary))
+        # print(evaluation.formatted_summary(summary2))
+        wandb.log(summary.to_dict('records')[0], commit=False)  # commit at fps below
+        benchmark.register_call("evaluate")
 
         # estimate speed if possible
         if speed_estimator:
