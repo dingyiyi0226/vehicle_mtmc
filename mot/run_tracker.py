@@ -219,7 +219,7 @@ def run_mot(cfg: CfgNode, cam_group=None, cam_name=None):
     benchmark = Benchmark()
     timer = Timer()
 
-    run = wandb.init(project="mtmc-try", group=cam_group, name=cam_name)
+    run = wandb.init(project="mtmc-try", group=cam_group, name=cam_name, config=cfg)
 
     for frame_num, frame in enumerate(video_in):
         if cfg.DEBUG_RUN and frame_num >= 100:
