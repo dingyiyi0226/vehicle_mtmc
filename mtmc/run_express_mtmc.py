@@ -66,7 +66,7 @@ def run_express_mtmc(cfg: CfgNode):
     mtmc_cfg.defrost()
     mtmc_cfg.MTMC.PICKLED_TRACKLETS = pickle_paths
     mtmc_cfg.freeze()
-    mtracks = run_mtmc(mtmc_cfg, cam_group=EXP_NAME)
+    mtracks = run_mtmc(mtmc_cfg)
 
     log.info("Express: Running MTMC on all cameras finished. Saving final results ...")
 
