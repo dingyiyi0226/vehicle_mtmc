@@ -407,9 +407,6 @@ def run_mot(cfg: CfgNode, cam_group=None, cam_name=None):
         track.predict_final_static_attributes()
         track.finalize_speed()
 
-    # close wandb run
-    run.finish()
-
     log.info("Tracking done. #Tracklets: {}".format(len(final_tracks)))
     # if cfg.MOT.REFINE:
     #     final_tracks = refine_tracklets(final_tracks, zone_matcher)[0]
@@ -443,6 +440,9 @@ def run_mot(cfg: CfgNode, cam_group=None, cam_name=None):
         cfg.EVAL.PREDICTIONS = [txt_save_path]
         cfg.freeze()
         run_evaluation(cfg)
+
+    # close wandb run
+    run.finish()
 
     return final_tracks
 
