@@ -87,7 +87,7 @@ def load_motchallenge_format(file_path, frame_offset=1):
         lines = f.readlines()
         for line in lines:
             line = line.strip().split(",")
-            line = [int(x) for x in line[:6]] + [float(x) for x in line[6:]]
+            line = [int(float(x)) for x in line[:6]] + [float(x) for x in line[6:]]
 
             # Subtract frame offset from frame indices. If indexing starts at one, we convert
             # it to start from zero.
