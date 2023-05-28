@@ -84,6 +84,28 @@ def box_change_skewed(box, prev_box, skew_ratio=0.1, eps=1e-5):
     ud = max(up_diff, 1) / max(down_diff, 1)
     return min(lr, ud) <= skew_ratio or max(lr, ud) >= 1 / skew_ratio
 
+def switch_reid_model(frame_num, device):
+    """ return extractor """
+
+    opts = ckpt = None
+
+    for s in cfg.MOT.SWITCHES:
+        if s["FRAME"] == frame_num:
+            opts = s["REID_MODEL_OPTS"]
+            ckpt = s["REID_MODEL_CKPT"]
+
+    if opts is None or ckpt is None:
+        log.error(f"Model for switching at frame {frame_num} not found.")
+        return None
+
+    reid_model = load_model_from_opts(opts, ckpt=ckpt, remove_classifier=True)
+    if cfg.MOT.REID_FP16:
+        reid_model.half()
+    reid_model.to(device)
+    reid_model.eval()
+    extractor = create_extractor(FeatureExtractor, batch_size=cfg.MOT.REID_BATCHSIZE,
+                                 model=reid_model)
+    return extractor
 
 def run_mot(cfg: CfgNode, cam_group=None, cam_name=None):
     """Run Multi-object tracking, defined by a config."""
@@ -233,6 +255,11 @@ def run_mot(cfg: CfgNode, cam_group=None, cam_name=None):
     total_frames = max(video_frames, max(test_df["frame"])) + 1
     test_by_frame = to_frame_list(test_df, total_frames)
 
+    if cfg.MOT.SWITCHES is not None:
+        switch_frames = list(map(lambda x: x["FRAME"], cfg.MOT.SWITCHES))
+    else:
+        switch_frames = []
+
     run = wandb.init(project="mtmc-try", group=cam_group, name=cam_name, config=cfg)
 
     for frame_num, frame in enumerate(video_in):
@@ -240,6 +267,10 @@ def run_mot(cfg: CfgNode, cam_group=None, cam_name=None):
             break
 
         benchmark.restart_timer()
+
+        if frame_num in switch_frames:
+            extractor = switch_reid_model(frame_num, device)
+            benchmark.register_call("switch model")
 
         res = detector(frame).xywh[0].cpu().numpy()
         benchmark.register_call("detector")
