@@ -130,8 +130,4 @@ if __name__ == '__main__':
     # ], 'reid/vehicle_reid/datasets/annot/', 0.75, 'cityflow_S01')
 
     # cityflow_gt_anno('./datasets/aic/train/S01/c001/gt/gt.txt','reid/vehicle_reid/datasets/annot/')
-    # cityflow_split_anno_frame('datasets/aic/train/S01/c001/anno.txt', 'reid/vehicle_reid/datasets/annot/', [0, 1000], name='c001_0-1000')
-    retrain_data('datasets/aic/train/S01/c001/anno.txt', frame=[60, 100], output_prefix='reid/vehicle_reid/datasets/annot/test')
-
-
-
+    cityflow_split_anno_frame('datasets/aic/train/S01/c001/anno.txt', 'reid/vehicle_reid/datasets/annot/', [0, 1000], name='c001_0-1000')
