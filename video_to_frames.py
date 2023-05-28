@@ -26,9 +26,10 @@ def video_to_frames(video, img_folder):
         frame_num += 1
 
 def frame_to_vehicles(frame_folder, vehicle_folder, gt_path, anno_path):
-    """ Frame number is file name """
+    """ Generate objects images and annotation file from frames
+    File name: [id]-[frame_no].jpg
+    """
 
-    anno_filename = 'anno.csv'
     os.mkdir(vehicle_folder)
 
     anno_list = []
