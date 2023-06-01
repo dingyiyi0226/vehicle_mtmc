@@ -3,5 +3,5 @@
 	url = https://github.com/ultralytics/yolov5
 [submodule "reid/vehicle_reid"]
 	path = reid/vehicle_reid
-	url = ../vehicle_reid
+	url = git@github.com:dingyiyi0226/vehicle_reid.git
 	branch = master
