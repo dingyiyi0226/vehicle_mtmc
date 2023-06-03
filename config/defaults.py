@@ -123,6 +123,8 @@ C.MOT.ZONE_MASK_DIR = None
 # run tracklet refinement at the end (post processing), zones are needed for this
 C.MOT.REFINE = False
 
+C.MOT.SWITCHES = []
+
 ################################################################################
 # MTMC (Multi-target multi-camera tracking) config
 ################################################################################

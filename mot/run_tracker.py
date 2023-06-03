@@ -21,6 +21,7 @@ from evaluate.run_evaluate import run_evaluation
 
 from reid.feature_extractor import FeatureExtractor
 from reid.vehicle_reid.load_model import load_model_from_opts
+from reid.vehicle_reid.train_func import train
 
 from detection.detection import Detection
 from detection.load_detector import load_yolo
@@ -248,14 +249,14 @@ def run_mot(cfg: CfgNode, cam_group=None, cam_name=None):
     metrics = mm.metrics.motchallenge_metrics
     metrics.extend(["idfp", "idfn", "idtp"])
     mh = mm.metrics.create()
-    AVG_FRAME_NUM = 100
+    AVG_FRAME_NUM = 300
 
     # load ground truth
     test_df = evaluation.load_annots(cfg.EVAL.GROUND_TRUTHS)
     total_frames = max(video_frames, max(test_df["frame"])) + 1
     test_by_frame = to_frame_list(test_df, total_frames)
 
-    if cfg.MOT.SWITCHES is not None:
+    if len(cfg.MOT.SWITCHES) > 0:
         switch_frames = list(map(lambda x: x["FRAME"], cfg.MOT.SWITCHES))
     else:
         switch_frames = []
