@@ -356,10 +356,11 @@ def run_mot(cfg: CfgNode, cam_group=None, cam_name=None):
         acc.update(gt_ids, pred_ids, iou_matrix)
 
         summary = mh.compute(acc.events.loc[max(0, frame_num-AVG_FRAME_NUM):frame_num], metrics=metrics, name="mtsc")
-        # summary2 = mh.compute(acc, metrics=metrics, name="all")
+        summary_all = mh.compute(acc, metrics=metrics, name="all")
         # print(evaluation.formatted_summary(summary))
         # print(evaluation.formatted_summary(summary2))
         wandb.log(summary.to_dict('records')[0], commit=False)  # commit at fps below
+        wandb.log({f'cu_{k}': summary_all.to_dict('records')[0][k] for k in ['idf1', 'mota']}, commit=False)
         benchmark.register_call("evaluate")
 
         # estimate speed if possible
