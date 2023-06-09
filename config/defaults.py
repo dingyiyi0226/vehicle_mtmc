@@ -123,7 +123,11 @@ C.MOT.ZONE_MASK_DIR = None
 # run tracklet refinement at the end (post processing), zones are needed for this
 C.MOT.REFINE = False
 
+# the pretrained models switched at specific frame
 C.MOT.SWITCHES = []
+
+# the frames to start retraining
+C.MOT.RETRAIN_FRAMES = []
 
 ################################################################################
 # MTMC (Multi-target multi-camera tracking) config

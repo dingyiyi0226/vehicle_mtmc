@@ -16,12 +16,13 @@ from mot.video_output import FileVideo, DisplayVideo, annotate_video_with_trackl
 from mot.zones import ZoneMatcher
 from mot.projection_3d import Projector
 from mot.attributes import AttributeExtractorMixed, SpeedEstimator
-from evaluate import evaluation
+from mot.retrain import retrain
+from evaluate.evaluation import load_annots, formatted_summary
 from evaluate.run_evaluate import run_evaluation
 
 from reid.feature_extractor import FeatureExtractor
 from reid.vehicle_reid.load_model import load_model_from_opts
-from reid.vehicle_reid.train_func import train
+# from reid.vehicle_reid.train_func import train
 
 from detection.detection import Detection
 from detection.load_detector import load_yolo
@@ -107,6 +108,23 @@ def switch_reid_model(frame_num, device):
     extractor = create_extractor(FeatureExtractor, batch_size=cfg.MOT.REID_BATCHSIZE,
                                  model=reid_model)
     return extractor
+
+def reload_reid_model(device):
+    reid_model = load_model_from_opts(cfg.MOT.REID_MODEL_OPTS,
+                                      ckpt=cfg.MOT.REID_MODEL_CKPT,
+                                      remove_classifier=True)
+    if cfg.MOT.REID_FP16:
+        reid_model.half()
+    reid_model.to(device)
+    reid_model.eval()
+    extractor = create_extractor(FeatureExtractor, batch_size=cfg.MOT.REID_BATCHSIZE,
+                                 model=reid_model)
+    return extractor
+
+
+def save_prediction(cfg: CfgNode, ids, bbox):
+    pass
+
 
 def run_mot(cfg: CfgNode, cam_group=None, cam_name=None):
     """Run Multi-object tracking, defined by a config."""
@@ -252,7 +270,7 @@ def run_mot(cfg: CfgNode, cam_group=None, cam_name=None):
     AVG_FRAME_NUM = 300
 
     # load ground truth
-    test_df = evaluation.load_annots(cfg.EVAL.GROUND_TRUTHS)
+    test_df = load_annots(cfg.EVAL.GROUND_TRUTHS)
     total_frames = max(video_frames, max(test_df["frame"])) + 1
     test_by_frame = to_frame_list(test_df, total_frames)
 
@@ -261,6 +279,13 @@ def run_mot(cfg: CfgNode, cam_group=None, cam_name=None):
     else:
         switch_frames = []
 
+    if len(cfg.MOT.RETRAIN_FRAMES) > 0:
+        retrain_frames = list(map(lambda x: x["FRAME"], cfg.MOT.RETRAIN_FRAMES))
+    else:
+        retrain_frames = []
+
+    retrain_future = None
+
     run = wandb.init(project="mtmc-try", group=cam_group, name=cam_name, config=cfg)
 
     for frame_num, frame in enumerate(video_in):
@@ -268,6 +293,21 @@ def run_mot(cfg: CfgNode, cam_group=None, cam_name=None):
             break
 
         benchmark.restart_timer()
+
+        if retrain_future is not None and retrain_future.done():
+            log.info("Reload model")
+            cfg = retrain_future.result()
+            extractor = reload_reid_model(device)
+            benchmark.register_call("reload model")
+            retrain_future = None
+
+        if frame_num in retrain_frames:
+            for s in cfg.MOT.RETRAIN_FRAMES:
+                if s["FRAME"] == frame_num:
+                    train_data = s["TRAIN_DATA"]
+                    val_data = s["VAL_DATA"]
+
+            retrain_future = retrain(cfg, train_data, val_data, epoch=5)
 
         if frame_num in switch_frames:
             extractor = switch_reid_model(frame_num, device)
@@ -362,6 +402,10 @@ def run_mot(cfg: CfgNode, cam_group=None, cam_name=None):
         wandb.log(summary.to_dict('records')[0], commit=False)  # commit at fps below
         wandb.log({f'cu_{k}': summary_all.to_dict('records')[0][k] for k in ['idf1', 'mota']}, commit=False)
         benchmark.register_call("evaluate")
+
+        # save prediction result for training
+        save_prediction(cfg, pred_ids, active_track_bboxes_tlwh)
+        benchmark.register_call("save pred")
 
         # estimate speed if possible
         if speed_estimator:
