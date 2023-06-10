@@ -8,6 +8,7 @@ import numpy as np
 import wandb
 from PIL import Image
 from yacs.config import CfgNode
+import multiprocessing
 
 from mot.deep_sort import preprocessing
 from mot.tracklet_processing import save_tracklets, save_tracklets_csv, refine_tracklets, save_tracklets_txt
@@ -284,9 +285,10 @@ def run_mot(cfg: CfgNode, cam_group=None, cam_name=None):
     else:
         retrain_frames = []
 
-    retrain_future = None
+    retrain_process = None
 
     run = wandb.init(project="mtmc-try", group=cam_group, name=cam_name, config=cfg)
+    result_queue = multiprocessing.Queue()
 
     for frame_num, frame in enumerate(video_in):
         if cfg.DEBUG_RUN and frame_num >= 100:
@@ -294,12 +296,19 @@ def run_mot(cfg: CfgNode, cam_group=None, cam_name=None):
 
         benchmark.restart_timer()
 
-        if retrain_future is not None and retrain_future.done():
-            log.info("Reload model")
-            cfg = retrain_future.result()
+        if retrain_process is not None and not retrain_process.is_alive():
+            log.info("Retrain finished")
+            new_cfg = result_queue.get()
+            print("new_cfg")
+            print(new_cfg)
+            if new_cfg is not None:
+                cfg = new_cfg
+
+            log.info(f"Reload model at frame {frame_num}")
+
             extractor = reload_reid_model(device)
             benchmark.register_call("reload model")
-            retrain_future = None
+            retrain_process = None
 
         if frame_num in retrain_frames:
             for s in cfg.MOT.RETRAIN_FRAMES:
@@ -307,7 +316,7 @@ def run_mot(cfg: CfgNode, cam_group=None, cam_name=None):
                     train_data = s["TRAIN_DATA"]
                     val_data = s["VAL_DATA"]
 
-            retrain_future = retrain(cfg, train_data, val_data, epoch=5)
+            retrain_process = retrain(cfg, train_data, val_data, 5, result_queue)
 
         if frame_num in switch_frames:
             extractor = switch_reid_model(frame_num, device)
@@ -542,5 +551,7 @@ if __name__ == "__main__":
 
     log.log_init(os.path.join(cfg.OUTPUT_DIR, args.log_filename),
                  args.log_level, not args.no_log_stdout)
+
+    multiprocessing.set_start_method('spawn')
 
     run_mot(cfg)

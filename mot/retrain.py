@@ -1,9 +1,11 @@
 import concurrent.futures
+import multiprocessing
+
 
 from reid.vehicle_reid.train_func import train
 from tools import log
 
-def retrain_job(cfg, train_data, val_data, epoch):
+def retrain_job(cfg, train_data, val_data, epoch, result_queue):
 
     model_name = cfg.MOT.REID_MODEL_OPTS.split('/')[-2]
     # train_data = "reid/vehicle_reid/datasets/annot/c001_0-1000_w_train.txt"
@@ -38,14 +40,18 @@ def retrain_job(cfg, train_data, val_data, epoch):
     new_cfg.MOT.REID_MODEL_CKPT = cfg.MOT.REID_MODEL_CKPT.rsplit('_', 1)[0] + '_' + str(last_epoch+epoch) + '.pth'
     new_cfg.freeze()
 
-    return new_cfg
+    result_queue.put(new_cfg)
+
+    return True
+
+def retrain(cfg, train_data, val_data, epoch, result_queue):
+
+    process = multiprocessing.Process(target=retrain_job, args=(cfg, train_data, val_data, epoch, result_queue))
+    process.start()
+
+    return process
 
 # def retrain(cfg, train_data, val_data, epoch):
-#     t = threading.Thread(target=retrain_job, args=(cfg, train_data, val_data, epoch))
-#     t.start()
-#     # t.join()
-
-def retrain(cfg, train_data, val_data, epoch):
-    with concurrent.futures.ThreadPoolExecutor() as executor:
-        future = executor.submit(retrain_job, cfg, train_data, val_data, epoch)
-        return future
+#     with concurrent.futures.ProcessPoolExecutor() as executor:
+#         future = executor.submit(retrain_job, cfg, train_data, val_data, epoch)
+#         return future
