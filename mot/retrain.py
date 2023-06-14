@@ -1,3 +1,5 @@
+import os
+
 import concurrent.futures
 import multiprocessing
 
@@ -20,7 +22,8 @@ def retrain_job(cfg, train_data, val_data, epoch, result_queue):
         "train_csv_path": train_data,
         "val_csv_path": val_data,
         "checkpoint": cfg.MOT.REID_MODEL_CKPT,
-        "gpu_ids": str(cfg.SYSTEM.GPU_IDS[0]),
+        # "gpu_ids": "1",
+        # "gpu_ids": str(cfg.SYSTEM.GPU_IDS[0]),
         "save_freq": epoch/2,
         "total_epoch": last_epoch + 1 + epoch,
         "start_epoch": last_epoch + 1,

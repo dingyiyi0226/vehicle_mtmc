@@ -335,6 +335,8 @@ def run_mot(cfg: CfgNode, cam_group=None, cam_name=None):
 
         boxes_tlwh = [[int(x - w / 2), int(y - h / 2), w, h]
                       for x, y, w, h in boxes]
+
+        # wandb.log({"objs": len(boxes_tlwh)}, commit=False)
         benchmark.register_call("detection filter")
 
         features = extractor(frame, boxes_tlwh)
