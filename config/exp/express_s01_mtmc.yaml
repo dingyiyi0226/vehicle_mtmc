@@ -1,0 +1,25 @@
+OUTPUT_DIR: "output/s01_vric_0"
+DEBUG_RUN: false
+FONTSIZE: 15
+MTMC:
+  CAMERA_LAYOUT: 'config/cityflow/s01_camera_layout.txt'
+  LINKAGE: 'average'
+  MIN_SIM: 0.5
+  PICKLED_TRACKLETS:
+    - "output/s01_vric_0/0_vdo/mot.pkl"
+    - "output/s01_vric_0/1_vdo/mot.pkl"
+    - "output/s01_vric_0/2_vdo/mot.pkl"
+    - "output/s01_vric_0/3_vdo/mot.pkl"
+    - "output/s01_vric_0/4_vdo/mot.pkl"
+EVAL:
+  MIN_IOU: 0.35
+  IGNORE_FP: true
+  DROP_SINGLE_CAM: true
+  GROUND_TRUTHS:
+    - "datasets/aic/train/S01/c001/gt/gt.txt"
+    - "datasets/aic/train/S01/c002/gt/gt.txt"
+    - "datasets/aic/train/S01/c003/gt/gt.txt"
+    - "datasets/aic/train/S01/c004/gt/gt.txt"
+    - "datasets/aic/train/S01/c005/gt/gt.txt"
+
+    

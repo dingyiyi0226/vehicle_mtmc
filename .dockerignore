@@ -1,0 +1,6 @@
+datasets/
+models/
+thesis/
+wandb/
+output/
+reid/vehicle_reid/model/

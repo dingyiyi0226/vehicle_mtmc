@@ -287,7 +287,7 @@ def run_mot(cfg: CfgNode, cam_group=None, cam_name=None):
 
     retrain_process = None
 
-    run = wandb.init(project="mtmc-try", group=cam_group, name=cam_name, config=cfg)
+    run = wandb.init(project="mtmc-exp", group=cam_group, name=cam_name, config=cfg)
     result_queue = multiprocessing.Queue()
 
     for frame_num, frame in enumerate(video_in):
@@ -556,4 +556,4 @@ if __name__ == "__main__":
 
     multiprocessing.set_start_method('spawn')
 
-    run_mot(cfg)
+    run_mot(cfg, cam_group=args.group)
